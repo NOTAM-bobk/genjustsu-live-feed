@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>genjutsu — live feed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #000000;
+      --bg: #f4f0e6;
+      --white: #ffffff;
+      --red: #ff3333;
+      --yellow: #ffcc00;
+      --blue: #3366ff;
+      --green: #00e676;
+      
+      --border: 3px solid var(--ink);
+      --shadow: 6px 6px 0px var(--ink);
+      --shadow-sm: 3px 3px 0px var(--ink);
+      --shadow-hover: 2px 2px 0px var(--ink);
+      
+      --mono: 'Space Mono', monospace;
+      --sans: 'Syne', sans-serif;
+      --jp: 'Noto Sans JP', sans-serif;
+    }
+    
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(var(--ink) 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: var(--jp); 
+      min-height: 100vh; 
+      overflow-x: hidden;
+      padding-bottom: 60px;
+    }
+
+    /* HEADER */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--white);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 60px; 
+      border-bottom: var(--border);
+      box-shadow: 0 4px 0px var(--ink);
+    }
+    .logo {
+      font-family: var(--sans); font-weight: 800; font-size: 1.25rem;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 0.75rem;
+      background: var(--yellow);
+      padding: 4px 12px;
+      border: 2px solid var(--ink);
+      transform: skew(-5deg);
+    }
+    .logo-kanji { font-family: var(--jp); font-size: 1.1rem; }
+    .logo-red { color: var(--red); }
+    
+    .header-status { 
+      display: flex; align-items: center; gap: 0.75rem; 
+      background: var(--white);
+      border: 2px solid var(--ink);
+      padding: 4px 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .dot {
+      width: 12px; height: 12px; border: 2px solid var(--ink);
+      background: var(--white); flex-shrink: 0;
+    }
+    .dot.live    { background: var(--green); }
+    .dot.error   { background: var(--red); }
+    .dot.loading { background: var(--yellow); }
+    .status-label {
+      font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* HERO */
+    .hero {
+      background: var(--blue); color: var(--white);
+      margin: 2rem auto;
+      max-width: 680px;
+      padding: 3rem 2rem; 
+      position: relative; overflow: hidden;
+      border: var(--border);
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: '幻術'; position: absolute; right: -1rem; top: 50%;
+      transform: translateY(-50%); font-family: var(--jp); font-size: 8rem;
+      font-weight: 900; color: var(--ink); opacity: 0.15;
+      pointer-events: none; user-select: none; line-height: 1;
+    }
+    .hero h1 {
+      font-family: var(--sans); font-size: clamp(2.5rem, 8vw, 4.5rem);
+      font-weight: 800; line-height: 0.9; letter-spacing: -0.05em;
+      text-shadow: 4px 4px 0px var(--ink);
+    }
+    .hero h1 em { font-style: normal; color: var(--yellow); }
+    .hero-sub {
+      margin-top: 1.5rem; font-family: var(--mono); font-size: 0.8rem;
+      font-weight: 700; background: var(--white); color: var(--ink);
+      display: inline-flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      padding: 8px 12px; border: 2px solid var(--ink);
+    }
+    .hero-sub a { color: var(--red); text-decoration: none; text-transform: uppercase; }
+    .hero-sub a:hover { text-decoration: underline; }
+
+    /* TICKER */
+    .ticker { 
+      background: var(--red); overflow: hidden; white-space: nowrap; 
+      padding: 10px 0; border-top: var(--border); border-bottom: var(--border);
+      box-shadow: 0 4px 0px var(--ink);
+      margin-bottom: 2rem;
+    }
+    .ticker-inner {
+      display: inline-block; font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase; color: var(--white);
+      text-shadow: 2px 2px 0px var(--ink);
+      animation: ticker 20s linear infinite;
+    }
+    @keyframes ticker { from{transform:translateX(100vw)} to{transform:translateX(-100%)} }
+
+    /* LAYOUT */
+    .container {
+      max-width: 680px; margin: 0 auto;
+      padding: 0 1.5rem 5rem; position: relative; z-index: 1;
+    }
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 2rem; padding: 1rem;
+      background: var(--white); border: var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    #count-label {
+      font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase;
+    }
+    #refresh-btn {
+      background: var(--yellow); border: 2px solid var(--ink); color: var(--ink);
+      font-family: var(--mono); font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      padding: 8px 16px; cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.1s; display: flex; align-items: center; gap: 6px;
+    }
+    #refresh-btn:hover:not(:disabled) { 
+      transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--ink); 
+      background: var(--white);
+    }
+    #refresh-btn:disabled { background: #ccc; cursor: not-allowed; transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--ink); }
+    .spin { display: inline-block; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* STATES */
+    .state {
+      text-align: center; padding: 4rem 2rem;
+      background: var(--white); border: var(--border); box-shadow: var(--shadow);
+    }
+    .state-icon { font-size: 3rem; margin-bottom: 1rem; line-height: 1; font-weight: 900;}
+    .state h3 { font-family: var(--sans); font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; text-transform: uppercase; }
+    .state p  { font-family: var(--mono); font-size: 0.85rem; font-weight: 700; }
+    .state p a { color: var(--blue); text-decoration: underline; text-underline-offset: 4px; }
+
+    #debug-box {
+      display: none; margin-top: 1.5rem;
+      background: var(--ink); color: var(--green);
+      font-family: var(--mono); font-size: 0.75rem; line-height: 1.6;
+      padding: 1rem; text-align: left; word-break: break-all;
+      border: 2px solid var(--red); box-shadow: var(--shadow-sm);
+    }
+
+    /* POSTS */
+    #feed { display: flex; flex-direction: column; gap: 1.5rem; }
+    .post {
+      background: var(--white); border: var(--border);
+      padding: 1.5rem; box-shadow: var(--shadow);
+      transition: transform 0.1s, box-shadow 0.1s;
+      animation: appear 0.3s ease both;
+    }
+    .post:hover { 
+      transform: translate(4px, 4px); 
+      box-shadow: var(--shadow-hover); 
+    }
+    @keyframes appear { from{opacity:0;transform:scale(0.98) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    
+    .post-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid var(--ink); padding-bottom: 1rem; }
+    .avatar {
+      width: 42px; height: 42px; border: 2px solid var(--ink);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--sans); font-weight: 800; font-size: 1rem;
+      color: var(--ink); flex-shrink: 0; text-transform: uppercase; user-select: none;
+      box-shadow: var(--shadow-sm);
+    }
+    .author { flex: 1; min-width: 0; }
+    .author-name {
+      font-family: var(--sans); font-weight: 800; font-size: 1.1rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;
+    }
+    .author-handle { 
+      font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
+      color: var(--white); background: var(--ink); padding: 2px 6px; display: inline-block; margin-top: 4px;
+    }
+    .post-body { font-size: 1rem; font-weight: 700; line-height: 1.6; color: var(--ink); word-break: break-word; white-space: pre-wrap; }
+    .post-footer {
+      display: flex; align-items: center; justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+    .view-btn {
+      font-family: var(--mono); font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      color: var(--white); background: var(--blue); border: 2px solid var(--ink);
+      padding: 6px 12px; text-decoration: none; box-shadow: 2px 2px 0px var(--ink);
+      transition: all 0.1s;
+    }
+    .view-btn:hover { background: var(--red); transform: translate(1px, 1px); box-shadow: 1px 1px 0px var(--ink); }
+
+    /* FOOTER */
+    .footer-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--white); color: var(--ink);
+      font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; border-top: var(--border);
+      padding: 10px 1.5rem; display: flex; justify-content: space-between;
+      align-items: center; z-index: 50; box-shadow: 0 -4px 0px var(--ink);
+    }
+    .footer-bar a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
+
+    @media (max-width: 580px) {
+      header { padding: 0 1rem; }
+      .hero { margin: 1rem; padding: 2rem 1.5rem; }
+      .container { padding: 0 1rem 5rem; }
+      .post { padding: 1.25rem; }
+      .ticker-inner { font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-kanji">幻術</span> genjutsu</div>
+  <div class="header-status">
+    <div class="dot loading" id="dot"></div>
+    <span class="status-label" id="status-label">connecting…</span>
+  </div>
+</header>
+
+<div class="hero">
+  <h1>live<br><em>feed</em></h1>
+  <div class="hero-sub">
+    <span>ephemeral · 24h posts</span>
+    <a href="https://genjutsu-social.vercel.app" target="_blank" rel="noopener">↗ open genjutsu</a>
+  </div>
+</div>
+
+<div class="ticker">
+  <span class="ticker-inner">
+    ✦ every post vanishes after 24 hours ✦ developer social · ephemeral by design ✦ 幻術 ✦ share code · ideas · late‑night builds ✦ genjutsu — the feed that never stays ✦&nbsp;&nbsp;
+  </span>
+</div>
+
+<div class="container">
+  <div class="toolbar">
+    <span id="count-label">--- posts</span>
+    <button id="refresh-btn">↻ refresh</button>
+  </div>
+  <div id="feed">
+    <div class="state">
+      <div class="state-icon"><span class="spin">⟳</span></div>
+      <h3>Fetching posts…</h3>
+      <p>Reaching out to genjutsu-social.vercel.app</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer-bar">
+  <span>mirroring <a href="https://genjutsu-social.vercel.app" target="_blank" rel="noopener">genjutsu-social.vercel.app</a></span>
+  <span id="last-updated">—</span>
+</div>
+
+<script>
+  const BOT_RENDER = 'https://genjutsu-social.vercel.app/api/bot-render?route=%2F';
+  const SOURCE     = 'https://genjutsu-social.vercel.app';
+  const REFRESH_MS = 60_000;
+
+  const PROXIES = [
+    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  ];
+
+  let debugLog = [];
+
+  // ── FETCH (OPTIMIZED WITH PROMISE.ANY) ───────────────────────────────────
+  async function fetchProxy(proxyFn, index) {
+    const url = proxyFn(BOT_RENDER);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout to avoid hanging
+    
+    try {
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const ct = res.headers.get('content-type') || '';
+      let html = '';
+
+      if (ct.includes('application/json')) {
+        const j = await res.json();
+        html = j.contents || j.body || JSON.stringify(j);
+      } else {
+        html = await res.text();
+      }
+
+      if (html.length > 300 && (html.includes('View post') || html.includes('/post/'))) {
+        return html; // Return immediately on first valid payload
+      }
+      throw new Error(`Proxy ${index} missing post markers`);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Proxy ${index} failed: ${e.message}`);
+    }
+  }
+
+  async function getHtml() {
+    debugLog = [];
+    try {
+      // Race all proxies concurrently. The first one to return valid HTML wins.
+      const html = await Promise.any(PROXIES.map((p, i) => fetchProxy(p, i)));
+      return html;
+    } catch (aggregateError) {
+      // If Promise.any fails, it means ALL proxies failed.
+      if (aggregateError instanceof AggregateError) {
+        debugLog = aggregateError.errors.map(err => err.message);
+      } else {
+        debugLog.push(aggregateError.message);
+      }
+      throw new Error('All proxies failed.');
+    }
+  }
+
+  // ── PARSE ────────────────────────────────────────────────────────────────
+  function parse(html) {
+    const doc   = new DOMParser().parseFromString(html, 'text/html');
+    const posts = [];
+
+    doc.querySelectorAll('li').forEach(li => {
+      const paras = [...li.querySelectorAll('p')];
+      const link  = li.querySelector('a[href*="/post/"]');
+      if (!paras.length) return;
+
+      const first = paras[0].textContent.trim();
+      const m     = first.match(/^(.+?)\s*\(@([^)]+)\)\s*$/);
+      const name  = m ? m[1].trim() : first;
+      const handle = m ? m[2].trim() : '';
+
+      const body = paras.slice(1).map(p => p.textContent.trim()).filter(Boolean).join('\n');
+      if (!body) return;
+
+      const href   = link ? link.getAttribute('href') : '';
+      const postId = href.split('/post/')[1] || '';
+      const url    = postId ? `${SOURCE}/post/${postId}` : SOURCE;
+
+      posts.push({ name, handle, body, url });
+    });
+
+    return posts;
+  }
+
+  // ── RENDER ───────────────────────────────────────────────────────────────
+  // Brutalist solid colors for avatars
+  const COLORS = ['#ffcc00', '#ff3333', '#3366ff', '#00e676', '#ff99cc', '#00cccc'];
+
+  function bgColor(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+    return COLORS[Math.abs(h) % COLORS.length];
+  }
+
+  function initials(s) {
+    return (s || '?').split(/\s+/).map(w => w[0] || '').join('').slice(0,2).toUpperCase() || '?';
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function card(p, i) {
+    const bg    = bgColor(p.name + p.handle);
+    const delay = (Math.min(i, 5) * 0.05).toFixed(2);
+    return `
+      <div class="post" style="animation-delay:${delay}s">
+        <div class="post-header">
+          <div class="avatar" style="background:${bg}">${esc(initials(p.name))}</div>
+          <div class="author">
+            <div class="author-name">${esc(p.name)}</div>
+            ${p.handle ? `<div class="author-handle">@${esc(p.handle)}</div>` : ''}
+          </div>
+        </div>
+        <div class="post-body">${esc(p.body)}</div>
+        <div class="post-footer">
+          <a class="view-btn" href="${esc(p.url)}" target="_blank" rel="noopener">view ↗</a>
+        </div>
+      </div>`;
+  }
+
+  // ── STATE ────────────────────────────────────────────────────────────────
+  const $feed   = document.getElementById('feed');
+  const $dot    = document.getElementById('dot');
+  const $status = document.getElementById('status-label');
+  const $count  = document.getElementById('count-label');
+  const $time   = document.getElementById('last-updated');
+
+  function setDot(s)    { $dot.className = 'dot ' + s; }
+  function setStatus(s) { $status.textContent = s; }
+  function setCount(n)  { $count.innerHTML = `${n} post${n!==1?'s':''}`; }
+  function stampTime()  {
+    $time.textContent = 'updated ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function showSpinner() {
+    $feed.innerHTML = `
+      <div class="state">
+        <div class="state-icon"><span class="spin">⟳</span></div>
+        <h3>Fetching posts…</h3>
+        <p>Racing proxies to genjutsu-social.vercel.app</p>
+      </div>`;
+  }
+
+  // ── LOAD ─────────────────────────────────────────────────────────────────
+  async function load(silent = false) {
+    if (!silent) showSpinner();
+    setDot('loading'); setStatus('loading…');
+
+    try {
+      const html  = await getHtml();
+      const posts = parse(html);
+
+      if (posts.length === 0) {
+        $feed.innerHTML = `
+          <div class="state">
+            <div class="state-icon">空</div>
+            <h3>Feed is empty</h3>
+            <p>No posts right now — everything vanishes every 24h.<br><br>
+               <a href="${SOURCE}" target="_blank" rel="noopener">POST SOMETHING ↗</a></p>
+          </div>`;
+        setDot('live'); setStatus('connected'); setCount(0);
+        return;
+      }
+
+      $feed.innerHTML = posts.map((p, i) => card(p, i)).join('');
+      setDot('live');
+      setStatus(`live`);
+      setCount(posts.length);
+      stampTime();
+
+    } catch (err) {
+      console.error(err);
+      setDot('error'); setStatus('error');
+      if (!silent) {
+        $feed.innerHTML = `
+          <div class="state">
+            <div class="state-icon">✕</div>
+            <h3>Could not load posts</h3>
+            <p>All CORS proxies timed out or failed. Try refreshing.<br><br>
+               <a href="${SOURCE}" target="_blank" rel="noopener">OPEN GENJUTSU DIRECTLY ↗</a></p>
+            <div id="debug-box" style="display:block">${debugLog.map(esc).join('<br>')}</div>
+          </div>`;
+      }
+    }
+  }
+
+  document.getElementById('refresh-btn').addEventListener('click', async function () {
+    this.innerHTML = '<span class="spin">↻</span> fetching';
+    this.disabled = true;
+    await load(false);
+    this.innerHTML = '↻ refresh';
+    this.disabled = false;
+  });
+
+  load(false);
+  setInterval(() => load(true), REFRESH_MS);
+</script>
+</body>
+</html>
