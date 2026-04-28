@@ -1,3 +1,5 @@
+##shout out to Ovi Ren from genjutsu for making this possible and updating the code for the feed API
+
 1. The Target (A Secret "Bot" Page)
 Normally, if you try to fetch a modern website (like a React app), you just get an empty HTML shell because the page hasn't loaded its JavaScript yet. To get around this, the code specifically targets a special URL: https://genjutsu-social.vercel.app/api/bot-render. This is a page built for search engine bots that already has all the posts fully written out in plain HTML.
 
